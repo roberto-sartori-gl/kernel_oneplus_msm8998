@@ -1912,7 +1912,6 @@ static void ufshcd_set_auto_hibern8_timer(struct ufs_hba *hba, u32 delay)
 static int ufshcd_hibern8_hold(struct ufs_hba *hba, bool async)
 {
 	int rc = 0;
-	bool flush_result;
 	unsigned long flags;
 
 	if (!ufshcd_is_hibern8_on_idle_allowed(hba))
