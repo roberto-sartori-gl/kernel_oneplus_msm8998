@@ -121,6 +121,7 @@ static void switch_dev_work(struct work_struct *work)
 		current_mode = mode;
 		switch_set_state(&switch_data->sdev, current_mode);
 		send_input(keyCode);
+		send_input(keyCode);
 		printk(DRV_NAME " changed to mode: %d\n", switch_data->sdev.state);
 	}
 
