@@ -952,7 +952,9 @@ static struct schedtune *stune_get_by_name(char *st_name)
 
 void dynamic_schedtune_set(bool state)
 {
+	unsigned long sugov_flags = SUGOV_LIMIT;
 	struct schedtune *st;
+	unsigned int cpu;
 
 	st = stune_get_by_name("top-app");
 	if (likely(st)) {
@@ -965,6 +967,26 @@ void dynamic_schedtune_set(bool state)
 	st = stune_get_by_name("foreground");
 	if (likely(st))
 		st->boost_bias = state;
+
+	/* Set active limits if state is true */
+	if (state)
+		sugov_flags |= SUGOV_LIMIT_ACTIVE;
+
+	rcu_read_lock();
+	for_each_possible_cpu(cpu) {
+		struct rq *rq = cpu_rq(cpu);
+		struct rq_flags rf;
+
+		/* 
+		 * Recalculate the governor's frequency for each cpu
+		 * to update utilization and put active/inactive limits 
+		 * per policy.
+		 */
+		rq_lock_irqsave(rq, &rf);
+		cpufreq_update_util(rq, sugov_flags);
+		rq_unlock_irqrestore(rq, &rf);
+	}
+	rcu_read_unlock();
 }
 #endif
 

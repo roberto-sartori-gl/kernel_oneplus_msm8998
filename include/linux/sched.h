@@ -3571,6 +3571,10 @@ static inline unsigned long rlimit_max(unsigned int limit)
 #define SCHED_CPUFREQ_DL        (1U << 1)
 #define SCHED_CPUFREQ_IOWAIT    (1U << 2)
 
+/* Sugov flags to control limit */
+#define SUGOV_LIMIT             (1U << 3)
+#define SUGOV_LIMIT_ACTIVE      (1U << 4)
+
 #ifdef CONFIG_CPU_FREQ
 struct update_util_data {
 	void (*func)(struct update_util_data *data, u64 time, unsigned int flags);

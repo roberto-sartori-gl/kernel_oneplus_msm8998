@@ -32,10 +32,13 @@ struct sugov_policy {
 	struct cpufreq_policy *policy;
 
 	raw_spinlock_t update_lock;  /* For shared policies */
+
+	bool limit_state;
 	u64 last_freq_update_time;
 	s64 min_rate_limit_ns;
 	s64 up_rate_delay_ns;
 	s64 down_rate_delay_ns;
+
 	unsigned int next_freq;
 	unsigned int cached_raw_freq;
 
@@ -124,6 +127,19 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 			return true;
 
 	return false;
+}
+
+static void sugov_set_rate_limits(struct sugov_policy *sg_policy, bool state)
+{
+	if (sg_policy->limit_state == state)
+		return;
+
+	sg_policy->limit_state = state;
+
+	sg_policy->up_rate_delay_ns = state ? 500000ULL : 20000000ULL;
+	sg_policy->down_rate_delay_ns = state ? 20000000ULL : 1000000ULL;
+	sg_policy->min_rate_limit_ns = min(sg_policy->up_rate_delay_ns,
+										sg_policy->down_rate_delay_ns);
 }
 
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
@@ -325,6 +341,12 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	sugov_set_iowait_boost(sg_cpu, time);
 	sg_cpu->last_update = time;
 
+	if (flags & SUGOV_LIMIT) {
+		raw_spin_lock(&sg_policy->update_lock);
+		sugov_set_rate_limits(sg_policy, (flags & SUGOV_LIMIT_ACTIVE));
+		raw_spin_unlock(&sg_policy->update_lock);
+	}
+
 	/*
 	 * For slow-switch systems, single policy requests can't run at the
 	 * moment if update is in progress, unless we acquire update_lock.
@@ -428,6 +450,9 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 
 	sugov_set_iowait_boost(sg_cpu, time);
 	sg_cpu->last_update = time;
+
+	if (flags & SUGOV_LIMIT)
+		sugov_set_rate_limits(sg_policy, (flags & SUGOV_LIMIT_ACTIVE));
 
 	if (sugov_should_update_freq(sg_policy, time)) {
 		if (flags & SCHED_CPUFREQ_DL)
@@ -618,6 +643,7 @@ static int sugov_start(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy = policy->governor_data;
 	unsigned int cpu;
 
+	sg_policy->limit_state = true;
 	sg_policy->up_rate_delay_ns = 500000ULL;
 	sg_policy->down_rate_delay_ns = 20000000ULL;
 	sg_policy->min_rate_limit_ns = 500000ULL;
