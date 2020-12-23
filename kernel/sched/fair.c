@@ -8232,6 +8232,12 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 		return 0;
 	}
 
+	/* Don't allow biased tasks to be migrated to lp cores */
+	if (cpumask_test_cpu(env->src_cpu, cpu_perf_mask) && 
+		cpumask_test_cpu(env->dst_cpu, cpu_lp_mask) && 
+		task_is_boosted(p))
+		return 0;
+
 	/* Record that we found atleast one task that could run on dst_cpu */
 	env->flags &= ~LBF_ALL_PINNED;
 
