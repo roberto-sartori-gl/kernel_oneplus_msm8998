@@ -6107,6 +6107,7 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 }
 
 static inline unsigned long boosted_task_util(struct task_struct *task);
+static inline bool task_is_boosted(struct task_struct *p);
 
 static inline bool __task_fits(struct task_struct *p, int cpu, int util)
 {
@@ -6117,13 +6118,16 @@ static inline bool __task_fits(struct task_struct *p, int cpu, int util)
 	return (capacity * 1024) > (util * capacity_margin);
 }
 
-static inline bool task_fits_max(struct task_struct *p, int cpu)
+static inline bool task_fits_cap(struct task_struct *p, int cpu)
 {
 	unsigned long capacity = capacity_orig_of(cpu);
 	unsigned long max_capacity = cpu_rq(cpu)->rd->max_cpu_capacity.val;
 
 	if (capacity == max_capacity)
 		return true;
+
+	if (cpumask_test_cpu(cpu, cpu_lp_mask) && task_is_boosted(p))
+		return false;
 
 	return __task_fits(p, cpu, 0);
 }
@@ -7568,7 +7572,7 @@ static void task_dead_fair(struct task_struct *p)
 	remove_entity_load_avg(&p->se);
 }
 #else
-#define task_fits_max(p, cpu) true
+#define task_fits_cap(p, cpu) true
 #endif /* CONFIG_SMP */
 
 static unsigned long
@@ -7843,7 +7847,7 @@ done: __maybe_unused;
 	if (hrtick_enabled(rq))
 		hrtick_start_fair(rq, p);
 
-	rq->misfit_task = !task_fits_max(p, rq->cpu);
+	rq->misfit_task = !task_fits_cap(p, rq->cpu);
 
 	return p;
 
@@ -11027,7 +11031,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 		trace_sched_overutilized(true);
 	}
 
-	rq->misfit_task = !task_fits_max(curr, rq->cpu);
+	rq->misfit_task = !task_fits_cap(curr, rq->cpu);
 #endif
 
 }
