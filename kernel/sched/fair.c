@@ -6122,11 +6122,12 @@ static inline bool task_fits_cap(struct task_struct *p, int cpu)
 {
 	unsigned long capacity = capacity_orig_of(cpu);
 	unsigned long max_capacity = cpu_rq(cpu)->rd->max_cpu_capacity.val;
+	int min_cpu = cpu_rq(cpu)->rd->min_cap_orig_cpu;
 
 	if (capacity == max_capacity)
 		return true;
 
-	if (cpumask_test_cpu(cpu, cpu_lp_mask) && task_is_boosted(p))
+	if (cpu == min_cpu && task_is_boosted(p))
 		return false;
 
 	return __task_fits(p, cpu, 0);
