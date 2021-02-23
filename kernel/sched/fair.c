@@ -5047,6 +5047,8 @@ unsigned long boosted_cpu_util(int cpu);
 #define boosted_cpu_util(cpu) cpu_util_freq(cpu)
 #endif
 
+static inline bool task_is_boosted(struct task_struct *p);
+
 static unsigned long cpu_util_without(int cpu, struct task_struct *p);
 static inline unsigned long cpu_util_freq(int cpu);
 
@@ -5093,9 +5095,9 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq
 	 * utilization updates, so do it here explicitly with the IOWAIT flag
-	 * passed.
+	 * passed. Only call the update if the task is boosted.
 	 */
-	if (p->in_iowait)
+	if (p->in_iowait && task_is_boosted(p))
 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
 
 	for_each_sched_entity(se) {
@@ -6107,7 +6109,6 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 }
 
 static inline unsigned long boosted_task_util(struct task_struct *task);
-static inline bool task_is_boosted(struct task_struct *p);
 
 static inline bool __task_fits(struct task_struct *p, int cpu, int util)
 {
