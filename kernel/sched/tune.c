@@ -836,6 +836,72 @@ static void write_default_values(struct cgroup_subsys_state *css)
 }
 #endif
 
+#ifdef CONFIG_DYNAMIC_STUNE
+enum dsst_list {
+	TOP_APP,
+	FOREGROUND,
+	DSST_MAX
+};
+
+struct dynstune_st {
+	char *name;
+	struct schedtune *st;
+};
+
+static struct dynstune_st stored_dsst[DSST_MAX] __read_mostly = {
+	{ "top-app", NULL }, { "foreground", NULL }
+};
+
+static void dynstune_st_store(struct cgroup_subsys_state *css)
+{
+	enum dsst_list i;
+
+	for (i = 0; i < DSST_MAX; i++) {
+		if (!strcmp(css->cgroup->kn->name, stored_dsst[i].name))
+			stored_dsst[i].st = css_st(css);
+	}
+}
+
+void dynamic_schedtune_set(bool state)
+{
+	unsigned long sugov_flags = SUGOV_LIMIT;
+	struct schedtune *st;
+	unsigned int cpu;
+
+	st = stored_dsst[TOP_APP].st;
+	if (likely(st)) {
+		s64 boost = state ? st->dynamic_boost : 0;
+
+		boost_write(&st->css, NULL, boost);
+		st->prefer_idle = state;
+	}
+
+	st = stored_dsst[FOREGROUND].st;
+	if (likely(st))
+		st->boost_bias = state;
+
+	/* Set active limits if state is true */
+	if (state)
+		sugov_flags |= SUGOV_LIMIT_ACTIVE;
+
+	rcu_read_lock();
+	for_each_possible_cpu(cpu) {
+		struct rq *rq = cpu_rq(cpu);
+		struct rq_flags rf;
+
+		/* 
+		 * Recalculate the governor's frequency for each cpu
+		 * to update utilization and put active/inactive limits 
+		 * per policy.
+		 */
+		rq_lock_irqsave(rq, &rf);
+		cpufreq_update_util(rq, sugov_flags);
+		rq_unlock_irqrestore(rq, &rf);
+	}
+	rcu_read_unlock();
+}
+#endif
+
 static struct cgroup_subsys_state *
 schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 {
@@ -856,6 +922,9 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 			break;
 #ifdef CONFIG_STUNE_ASSIST
 		write_default_values(&allocated_group[idx]->css);
+#endif
+#ifdef CONFIG_DYNAMIC_STUNE
+		dynstune_st_store(&allocated_group[idx]->css);
 #endif
 	}
 	if (idx == BOOSTGROUPS_COUNT) {
@@ -928,67 +997,6 @@ schedtune_init_cgroups(void)
 
 	schedtune_initialized = true;
 }
-
-#ifdef CONFIG_DYNAMIC_STUNE
-static struct schedtune *stune_get_by_name(char *st_name)
-{
-	int idx;
-
-	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
-		char name_buf[NAME_MAX + 1];
-		struct schedtune *st = allocated_group[idx];
-
-		if (unlikely(!st))
-			break;
-
-		cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
-		if (!strncmp(name_buf, st_name, strlen(st_name)))
-			return st;
-	}
-
-	pr_warn("schedtune: could not find %s\n", st_name);
-	return NULL;
-}
-
-void dynamic_schedtune_set(bool state)
-{
-	unsigned long sugov_flags = SUGOV_LIMIT;
-	struct schedtune *st;
-	unsigned int cpu;
-
-	st = stune_get_by_name("top-app");
-	if (likely(st)) {
-		s64 boost = state ? st->dynamic_boost : 0;
-
-		boost_write(&st->css, NULL, boost);
-		st->prefer_idle = state;
-	}
-
-	st = stune_get_by_name("foreground");
-	if (likely(st))
-		st->boost_bias = state;
-
-	/* Set active limits if state is true */
-	if (state)
-		sugov_flags |= SUGOV_LIMIT_ACTIVE;
-
-	rcu_read_lock();
-	for_each_possible_cpu(cpu) {
-		struct rq *rq = cpu_rq(cpu);
-		struct rq_flags rf;
-
-		/* 
-		 * Recalculate the governor's frequency for each cpu
-		 * to update utilization and put active/inactive limits 
-		 * per policy.
-		 */
-		rq_lock_irqsave(rq, &rf);
-		cpufreq_update_util(rq, sugov_flags);
-		rq_unlock_irqrestore(rq, &rf);
-	}
-	rcu_read_unlock();
-}
-#endif
 
 #else /* CONFIG_CGROUP_SCHEDTUNE */
 
