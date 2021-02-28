@@ -136,8 +136,8 @@ static void sugov_set_rate_limits(struct sugov_policy *sg_policy, bool state)
 
 	sg_policy->limit_state = state;
 
-	sg_policy->up_rate_delay_ns = state ? 500000ULL : 20000000ULL;
-	sg_policy->down_rate_delay_ns = state ? 20000000ULL : 1000000ULL;
+	sg_policy->up_rate_delay_ns = state ? 500000ULL : 10000000ULL;
+	sg_policy->down_rate_delay_ns = state ? 20000000ULL : 10000000ULL;
 	sg_policy->min_rate_limit_ns = min(sg_policy->up_rate_delay_ns,
 										sg_policy->down_rate_delay_ns);
 }
