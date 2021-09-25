@@ -402,7 +402,7 @@ int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 	memset(fname, 0, sizeof(struct ext4_filename));
 	fname->usr_fname = iname;
 
-	if (!ext4_encrypted_inode(dir) ||
+	if (!IS_ENCRYPTED(dir) ||
 	    ((iname->name[0] == '.') &&
 	     ((iname->len == 1) ||
 	      ((iname->name[1] == '.') && (iname->len == 2))))) {

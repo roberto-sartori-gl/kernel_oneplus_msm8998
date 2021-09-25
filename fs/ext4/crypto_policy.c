@@ -160,11 +160,11 @@ int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 		return 1;
 
 	/* No restrictions if the parent directory is unencrypted */
-	if (!ext4_encrypted_inode(parent))
+	if (!IS_ENCRYPTED(parent))
 		return 1;
 
 	/* Encrypted directories must not contain unencrypted files */
-	if (!ext4_encrypted_inode(child))
+	if (!IS_ENCRYPTED(child))
 		return 0;
 
 	/*

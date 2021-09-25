@@ -702,7 +702,7 @@ encryption_policy_out:
 		struct ext4_encryption_policy policy;
 		int err = 0;
 
-		if (!ext4_encrypted_inode(inode)) {
+		if (!IS_ENCRYPTED(inode)) {
 			pr_err("EXT4_IOC_GET_ENCRYPTION_POLICY: no entry!\n");
 			return -ENOENT;
 		}

@@ -618,7 +618,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 
 				name  = de->name;
 				len = de->name_len;
-				if (ext4_encrypted_inode(inode))
+				if (IS_ENCRYPTED(dir))
 					res = ext4_get_encryption_info(dir);
 				if (res) {
 					printk(KERN_WARNING "Error setting up"
@@ -966,7 +966,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 					   EXT4_DIR_REC_LEN(0));
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	/* Check if the directory is encrypted */
-	if (ext4_encrypted_inode(dir)) {
+	if (IS_ENCRYPTED(dir)) {
 		err = ext4_get_encryption_info(dir);
 		if (err < 0) {
 			brelse(bh);
@@ -995,7 +995,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 			continue;
 		if (de->inode == 0)
 			continue;
-		if (!ext4_encrypted_inode(dir)) {
+		if (!IS_ENCRYPTED(dir)) {
 			tmp_str.name = de->name;
 			tmp_str.len = de->name_len;
 			err = ext4_htree_store_dirent(dir_file,
@@ -1546,7 +1546,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 	struct ext4_dir_entry_2 *de;
 	struct buffer_head *bh;
 
-       if (ext4_encrypted_inode(dir)) {
+       if (IS_ENCRYPTED(dir)) {
                int res = ext4_get_encryption_info(dir);
 
 		/*
@@ -1590,7 +1590,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 					 ino);
 			return ERR_PTR(-EFSCORRUPTED);
 		}
-		if (!IS_ERR(inode) && ext4_encrypted_inode(dir) &&
+		if (!IS_ERR(inode) && IS_ENCRYPTED(dir) &&
 		    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		     S_ISLNK(inode->i_mode)) &&
 		    !ext4_is_child_context_consistent_with_parent(dir,
@@ -3062,7 +3062,7 @@ static int ext4_symlink(struct inode *dir,
 	disk_link.len = len + 1;
 	disk_link.name = (char *) symname;
 
-	encryption_required = (ext4_encrypted_inode(dir) ||
+	encryption_required = (IS_ENCRYPTED(dir) ||
 			       DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb)));
 	if (encryption_required) {
 		err = ext4_get_encryption_info(dir);
@@ -3213,7 +3213,7 @@ static int ext4_link(struct dentry *old_dentry,
 
 	if (inode->i_nlink >= EXT4_LINK_MAX)
 		return -EMLINK;
-	if (ext4_encrypted_inode(dir) &&
+	if (IS_ENCRYPTED(dir) &&
 	    !ext4_is_child_context_consistent_with_parent(dir, inode))
 		return -EXDEV;
 	err = dquot_initialize(dir);
@@ -3519,9 +3519,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int credits;
 	u8 old_file_type;
 
-	if ((ext4_encrypted_inode(old_dir) &&
+	if ((IS_ENCRYPTED(old_dir) &&
 	     !ext4_has_encryption_key(old_dir)) ||
-	    (ext4_encrypted_inode(new_dir) &&
+	    (IS_ENCRYPTED(new_dir) &&
 	     !ext4_has_encryption_key(new_dir)))
 		return -ENOKEY;
 
@@ -3554,7 +3554,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto release_bh;
 
 	if ((old.dir != new.dir) &&
-	    ext4_encrypted_inode(new.dir) &&
+	    IS_ENCRYPTED(new.dir) &&
 	    !ext4_is_child_context_consistent_with_parent(new.dir,
 							  old.inode)) {
 		retval = -EXDEV;
@@ -3729,14 +3729,14 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	u8 new_file_type;
 	int retval;
 
-	if ((ext4_encrypted_inode(old_dir) &&
+	if ((IS_ENCRYPTED(old_dir) &&
 	     !ext4_has_encryption_key(old_dir)) ||
-	    (ext4_encrypted_inode(new_dir) &&
+	    (IS_ENCRYPTED(new_dir) &&
 	     !ext4_has_encryption_key(new_dir)))
 		return -ENOKEY;
 
-	if ((ext4_encrypted_inode(old_dir) ||
-	     ext4_encrypted_inode(new_dir)) &&
+	if ((IS_ENCRYPTED(old_dir) ||
+	     IS_ENCRYPTED(new_dir)) &&
 	    (old_dir != new_dir) &&
 	    (!ext4_is_child_context_consistent_with_parent(new_dir,
 							   old.inode) ||

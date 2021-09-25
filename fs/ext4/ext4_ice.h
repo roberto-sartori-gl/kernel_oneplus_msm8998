@@ -19,7 +19,7 @@
 #ifdef CONFIG_EXT4_FS_ICE_ENCRYPTION
 static inline int ext4_should_be_processed_by_ice(const struct inode *inode)
 {
-	if (!ext4_encrypted_inode((struct inode *)inode))
+	if (!IS_ENCRYPTED((struct inode *)inode))
 		return 0;
 
 	return ext4_using_hardware_encryption((struct inode *)inode);
